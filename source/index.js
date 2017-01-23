@@ -6,7 +6,9 @@ const BotEvents = require('viber-bot').Events;
 const TextMessage = require('viber-bot').Message.Text;
 
 // Microsoft Bot Framework (MBF) - DirectLine - Connector 
-const MicrosoftBot = require('./microsoftBotConnector').MicrosoftBot;
+// const MicrosoftBot = require('./microsoftBotConnector').MicrosoftBot;
+const MicrosoftBot = require('./microsoftBotConnectorNew').MicrosoftBotNew;
+const MbfEvents = require('./mbf-events');
 
 // Utilities
 const winston = require('winston');
@@ -16,12 +18,13 @@ require('dotenv').config();
 // config items
 const ViberBotName = 'MBF Connector';
 const ViberBotImageUrl = 'https://raw.githubusercontent.com/devrelv/drop/master/151-icon.png';
-const ViberPublicAccountAccessTokenKey = 'xxxxxxxxxxxxxxxxxxxxxxxxx';   // ToDo: Replace with your Viber Public Account access token
+const ViberPublicAccountAccessTokenKey = '456ce8e1b16fe8fb-cdc7645e68d963b6-284759094aefa713';   // ToDo: Replace with your Viber Public Account access token
 
 const MicrosoftBotDirectLineClientName = 'ViberBotConnector';
-const MicrosoftBotDirectLineSecret = 'xxxxxxxxxxxxxxxxxxxxx';           // ToDo: Replace with your Microsoft Bot Framework DirectLine secret
+// const MicrosoftBotDirectLineSecret = 'fPENbGkZbN4.cwA.Y8Y.QMx5qF83hFJk6xgKB1JFrVyQ2jWGKd6TT5WOfbGIDDI'; // MBF Connector bot
+const MicrosoftBotDirectLineSecret = 'PGcHkSeuMzY.cwA.aPA.Xc1RkxPevwjx-FILJ7ngm06wJTkMWjR4Y1bETiqJdl4';           // ToDo: Replace with your Microsoft Bot Framework DirectLine secret
 
-const WebServerUrl = 'https://YOUR_VIBER_BOT_HOST';                     // ToDo: This is the URL where the Viber bot is hosted. Has to be an external URL
+const WebServerUrl = 'https://016d8783.ngrok.io';                     // ToDo: This is the URL where the Viber bot is hosted. Has to be an external URL
 const WebServerPort = 8080;                                             // ToDo: This is the port of the Viber bot. 
 
 
@@ -48,11 +51,13 @@ const mbfBot = new MicrosoftBot(logger, {
     secret: process.env.MICROSOFT_BOT_DIRECT_LINE_SECRET || MicrosoftBotDirectLineSecret, 
     pollInterval: process.env.MICROSOFT_BOT_POLL_INTERVAL || 1000});
 
+mbfBot.on(MbfEvents.MBF_MESSAGE_RECEIVED, function(recipient, message) {
+    recipient.send(message);
+});
+
 bot.onSubscribe(response => {
     // create a connection to the MBF bot
-    mbfBot.createNewConversation(function(message) {
-        reply(response, message);
-    });
+    mbfBot.createNewConversation(response);
 });
 
 bot.on(BotEvents.MESSAGE_RECEIVED, (message, response) => {
