@@ -15,6 +15,7 @@ function MicrosoftBot(logger, options) {
     this._logger = logger;
 
     this._directLineClientName = options.clientName !== undefined ? options.clientName : defaultDirectLineClientName;
+    this._directLineSecrect = options.secret;
     this._pollInterval = options.pollInterval !== undefined ? options.pollInterval : defaultPollInterval;
 
     this._client;
@@ -50,7 +51,6 @@ MicrosoftBot.prototype.createNewConversation = function(sendBotReply) {
                 this._logger.debug('Conversation ready. ConversationId: ' + conversationId);
 
                 self._conversationId = conversationId;
-                sendMessagesFromConsole(conversationId);                                        // start watching console input for sending new messages to bot
                 pollMessages(self, client, conversationId);                                     // start polling messages from bot
             });
     });
