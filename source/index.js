@@ -59,11 +59,9 @@ bot.onSubscribe(response => {
     mbfBot.createNewConversation(response.userProfile);
 });
 
-bot.onTextMessage(/./, (message, response) => {
-    // send a message to the MBF bot
-    if (mbfBot) {
-        mbfBot.sendMessage(response.userProfile, message);
-    }
+bot.on(BotEvents.MESSAGE_RECEIVED, (message, response) => {
+    // send an user message to the MBF bot
+    mbfBot.sendMessage(response.userProfile, message);
 });
 
 var webHookUrl = process.env.WEBSERVER_URL || WebServerUrl;

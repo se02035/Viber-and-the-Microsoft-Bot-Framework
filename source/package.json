@@ -15,6 +15,7 @@
     "swagger-client": "^2.1.32",
     "viber-bot": "^1.0.6",
     "winston": "^2.3.0",
-    "winston-console-formatter": "^0.3.1"
+    "winston-console-formatter": "^0.3.1",
+    "mime-types": "^2.1.14"
   }
 }

@@ -4,10 +4,19 @@ const MbfEvents = require('./mbf-events');
 const Swagger = require('swagger-client');
 const open = require('open');
 const directLineSpec = require('./directline-swagger.json');
+const mime = require('mime-types');
+const url = require('url');
+const path = require('path');
 
 // incoming message translation
 const TextMessage = require('viber-bot').Message.Text;
 const PictureMessage = require('viber-bot').Message.Picture;
+const UrlMessage = require('viber-bot').Message.Url;
+const ContactMessage = require('viber-bot').Message.Contact;
+const VideoMessage = require('viber-bot').Message.Video;
+const LocationMessage = require('viber-bot').Message.Location;
+const StickerMessage = require('viber-bot').Message.Sticker;
+const FileMessage = require('viber-bot').Message.File;
 
 // config items
 const defaultPollInterval = 1000;
@@ -80,24 +89,76 @@ class MicrosoftBot extends EventEmitter {
         }
 
         this._toMbfBotMessage = (viberMessage) => {
-            let botMessage;
+            let parsedUrl;
+            let fileName;
             
-            if (viberMessage instanceof TextMessage) {
-                botMessage = {
-                    from: this._directLineClientName,
-                    text: viberMessage.text,
-                    channelData: null,
-                    images: null,
-                    attachments: null
-                };
-            }
-            else {
-                throw err;
+            let botMessage = {
+                        from: this._directLineClientName,
+                        text: viberMessage.text,
+                        channelData: viberMessage.toJson(),
+                        images: null,
+                        attachments: null
+                    };
+
+            switch (viberMessage.constructor) {
+                case TextMessage:
+                    // nothing to do here
+                    break;
+                case UrlMessage:
+                    break;
+                case ContactMessage:
+                    break;
+                case PictureMessage:
+                    botMessage.images = [viberMessage.url];
+                    
+                    parsedUrl = url.parse(viberMessage.url);
+                    fileName = path.basename(parsedUrl.pathname);
+                    
+                    botMessage.attachments = [
+                        {
+                            "contentType": mime.lookup(fileName),
+                            "contentUrl": viberMessage.url,
+                            "name": fileName
+                        }
+                    ];
+                    break;
+                case VideoMessage:
+                    botMessage.images = [viberMessage.url];
+
+                    parsedUrl = url.parse(viberMessage.url);
+                    fileName = path.basename(parsedUrl.pathname);
+                    
+                    botMessage.attachments = [
+                        {
+                            "contentType": mime.lookup(fileName),
+                            "contentUrl": viberMessage.url,
+                            "name": fileName
+                        }
+                    ];
+                    break;
+                case FileMessage:                    
+                    botMessage.attachments = [
+                        {
+                            "contentType": mime.lookup(viberMessage.filename),
+                            "contentUrl": viberMessage.url,
+                            "name": viberMessage.filename
+                        }
+                    ];
+
+                    break;
+                case LocationMessage:
+                    break;
+                case StickerMessage:
+                    break;
+                default:
+                    throw new Error('unknown message type'); 
+                    break;
             }
 
             return botMessage;
         }
-    }
+    };
+
 
     createNewConversation(userProfile) {
         var up = userProfile;
