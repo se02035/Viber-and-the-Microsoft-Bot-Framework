@@ -6,7 +6,6 @@ const BotEvents = require('viber-bot').Events;
 const TextMessage = require('viber-bot').Message.Text;
 
 // Microsoft Bot Framework (MBF) - DirectLine - Connector 
-// const MicrosoftBot = require('./microsoftBotConnector').MicrosoftBot;
 const MicrosoftBot = require('./microsoftBotConnectorNew').MicrosoftBotNew;
 const MbfEvents = require('./mbf-events');
 
@@ -18,13 +17,12 @@ require('dotenv').config();
 // config items
 const ViberBotName = 'MBF Connector';
 const ViberBotImageUrl = 'https://raw.githubusercontent.com/devrelv/drop/master/151-icon.png';
-const ViberPublicAccountAccessTokenKey = '456ce8e1b16fe8fb-cdc7645e68d963b6-284759094aefa713';   // ToDo: Replace with your Viber Public Account access token
+const ViberPublicAccountAccessTokenKey = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';   // ToDo: Replace with your Viber Public Account access token
 
 const MicrosoftBotDirectLineClientName = 'ViberBotConnector';
-// const MicrosoftBotDirectLineSecret = 'fPENbGkZbN4.cwA.Y8Y.QMx5qF83hFJk6xgKB1JFrVyQ2jWGKd6TT5WOfbGIDDI'; // MBF Connector bot
-const MicrosoftBotDirectLineSecret = 'PGcHkSeuMzY.cwA.aPA.Xc1RkxPevwjx-FILJ7ngm06wJTkMWjR4Y1bETiqJdl4';           // ToDo: Replace with your Microsoft Bot Framework DirectLine secret
+const MicrosoftBotDirectLineSecret = 'xxxxxxxxxxxxxxxxxxxxxxxxxxx';           // ToDo: Replace with your Microsoft Bot Framework DirectLine secret
 
-const WebServerUrl = 'https://016d8783.ngrok.io';                     // ToDo: This is the URL where the Viber bot is hosted. Has to be an external URL
+const WebServerUrl = 'HTTPS://YOUR_BOT_SITE';                     // ToDo: This is the URL where the Viber bot is hosted. Has to be an external URL
 const WebServerPort = 8080;                                             // ToDo: This is the port of the Viber bot. 
 
 
@@ -52,36 +50,21 @@ const mbfBot = new MicrosoftBot(logger, {
     pollInterval: process.env.MICROSOFT_BOT_POLL_INTERVAL || 1000});
 
 mbfBot.on(MbfEvents.MBF_MESSAGE_RECEIVED, function(recipient, message) {
-    recipient.send(message);
+    // send a MBF bot message back to Viber
+    bot.sendMessage(recipient, message);
 });
 
 bot.onSubscribe(response => {
     // create a connection to the MBF bot
-    mbfBot.createNewConversation(response);
+    mbfBot.createNewConversation(response.userProfile);
 });
-
-bot.on(BotEvents.MESSAGE_RECEIVED, (message, response) => {
-    processIncomingMessage(message, response);
-});
-
-function processIncomingMessage(message, response) {
-    // this sample implementation only supports Viber text messages
-    if (!(message instanceof TextMessage)) {
-        reply(response, `Sorry. I can only understand text messages.`);
-    }
-}
 
 bot.onTextMessage(/./, (message, response) => {
     // send a message to the MBF bot
     if (mbfBot) {
-        mbfBot.sendMessage(message.text)
+        mbfBot.sendMessage(response.userProfile, message);
     }
 });
-
-function reply(response, message) {
-    // send the message to the Viber chat client
-    response.send(message);
-}
 
 var webHookUrl = process.env.NOW_URL || process.env.HEROKU_URL || WebServerUrl;
 if (webHookUrl) {

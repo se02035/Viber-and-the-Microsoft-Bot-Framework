@@ -22,10 +22,10 @@ class MicrosoftBotNew extends EventEmitter {
         this._directLineClientName = options.clientName !== undefined ? options.clientName : defaultDirectLineClientName;
         this._directLineSecrect = options.secret;
         this._pollInterval = options.pollInterval !== undefined ? options.pollInterval : defaultPollInterval;
-
         this._client;
-        this._conversationId;
-        this._viberClient;
+
+        this._conntectClientsByConversationId = {};
+        this._conversationIdByClientId = {};
 
         this._pollMessages = (client, conversationId) => {
             var self = this;
@@ -34,7 +34,7 @@ class MicrosoftBotNew extends EventEmitter {
             setInterval(() => {
                 client.Conversations.Conversations_GetMessages({ conversationId: conversationId, watermark: watermark })
                     .then((response) => {
-                        watermark = response.obj.watermark;                                 // use watermark so subsequent requests skip old messages 
+                        watermark = response.obj.watermark;  // use watermark so subsequent requests skip old messages 
                         return response.obj.messages;
                     })
                     .then((messages) => {
@@ -43,21 +43,29 @@ class MicrosoftBotNew extends EventEmitter {
                             messages = messages.filter((m) => m.from !== self._directLineClientName);
 
                             if (messages.length) {
+                                // all messages will have the same recipient
+                                let recipient = this._conntectClientsByConversationId[messages[0].conversationId];
+
                                 // forward message to viber
-                                messages.forEach(forwardMessageToViber, self);
+                                messages.forEach((msg) => {
+                                    this.emit(MbfEvents.MBF_MESSAGE_RECEIVED, recipient, this._toViberMessage(msg));
+                                }, self);
                             }
                         };
                     })
-            }, self._pollInterval);
+            }, this._pollInterval);
         };
 
-        function forwardMessageToViber(message) {   
+        this._toViberMessage = (mbfBotMessage) => {
             let viberMsg;
 
-            if (message.channelData) {
-                switch (message.channelData.contentType) {
+            if (mbfBotMessage.channelData) {
+                switch (mbfBotMessage.channelData.contentType) {
                     case "image/png":
-                        viberMsg = new PictureMessage(message.channelData.contentUrl, message.text, message.channelData.thumbnailUrl);
+                        viberMsg = new PictureMessage(
+                            mbfBotMessage.channelData.contentUrl, 
+                            mbfBotMessage.text, 
+                            mbfBotMessage.channelData.thumbnailUrl);
                         break;
                     default:
                         // nothing to do
@@ -65,17 +73,36 @@ class MicrosoftBotNew extends EventEmitter {
                 }
             }
             else {
-                viberMsg = new TextMessage(message.text);
+                viberMsg = new TextMessage(mbfBotMessage.text);
             }
 
-            this.emit(MbfEvents.MBF_MESSAGE_RECEIVED, this._viberClient, viberMsg);
-        };
+            return viberMsg;
+        }
+
+        this._toMbfBotMessage = (viberMessage) => {
+            let botMessage;
+            
+            if (viberMessage instanceof TextMessage) {
+                botMessage = {
+                    from: this._directLineClientName,
+                    text: viberMessage.text,
+                    channelData: null,
+                    images: null,
+                    attachments: null
+                };
+            }
+            else {
+                throw err;
+            }
+
+            return botMessage;
+        }
     }
 
-    createNewConversation(viberClient) {
-        this._viberClient = viberClient;
+    createNewConversation(userProfile) {
+        var up = userProfile;
         var self = this;
-        var profile = viberClient.userProfile;
+        // var profile = viberClient.userProfile;
 
         var logger = this._logger;
         var directLineSecret = this._directLineSecrect;
@@ -97,40 +124,28 @@ class MicrosoftBotNew extends EventEmitter {
         // once the client is ready, create a new conversation 
         directLineClient.then((client) => {
             self._client = client;
-            self._client.Conversations.Conversations_NewConversation()                              // create conversation
-                .then((response) => response.obj.conversationId)                                    // obtain id
+            self._client.Conversations.Conversations_NewConversation()                             
+                .then((response) => response.obj.conversationId)  
                 .then((conversationId) => {
                     logger.debug('Conversation ready. ConversationId: ' + conversationId);
 
-                    self._conversationId = conversationId;
-                    self._pollMessages(client, conversationId);                                     // start polling messages from bot
+                    // for lookup purposes
+                    self._conntectClientsByConversationId[conversationId] = up;
+                    self._conversationIdByClientId[up.id] = conversationId;
+
+                    // start polling for new messages sent by the MBF bot
+                    self._pollMessages(client, conversationId);                                     
 
                     self.emit(MbfEvents.MBF_CONVERSATION_STARTED, conversationId);
                 });
         });
     }
 
-    sendMessage(message) {
-        if (this._client == null || this._conversationId == null) {
-            this._logger.error('Error sending message: client or conversation not ready');
-            return;
-        }
-
-        // Step 1: Get conversationId
-
-        // Step 2: Get 
-
-        // send message
+    sendMessage(userProfile, message) {
         this._client.Conversations.Conversations_PostMessage(
         {
-            conversationId: this._conversationId,
-            message: {
-                from: this._directLineClientName,
-                text: message,
-                channelData: null,
-                images: null,
-                attachments: null
-            }
+            conversationId: this._conversationIdByClientId[userProfile.id],
+            message: this._toMbfBotMessage(message)
         }).catch((err) => this._logger.error('Error sending message:', err));
     }
 }
