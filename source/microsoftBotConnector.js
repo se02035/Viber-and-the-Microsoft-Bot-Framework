@@ -1,119 +1,153 @@
-var Swagger = require('swagger-client');
-var open = require('open');
-var directLineSpec = require('./directline-swagger.json');
+const EventEmitter = require('events');
+const MbfEvents = require('./mbf-events');
+
+const Swagger = require('swagger-client');
+const open = require('open');
+const directLineSpec = require('./directline-swagger.json');
 
 // incoming message translation
 const TextMessage = require('viber-bot').Message.Text;
 const PictureMessage = require('viber-bot').Message.Picture;
 
 // config items
-var defaultPollInterval = 1000;
-var defaultDirectLineClientName = 'ViberBotConnector';
-var defaultDirectLineSecret = 'xxxxxxxxxxxxxxxxxxxxx'; // ToDo: Replace with your Microsoft Bot Framework DirectLine secret
+const defaultPollInterval = 1000;
+const defaultDirectLineClientName = 'ViberBotConnector';
+const defaultDirectLineSecret = 'xxxxxxxxxxxxxxxxxxxxx'; // ToDo: Replace with your Microsoft Bot Framework DirectLine secret
 
-function MicrosoftBot(logger, options) {  
-    this._logger = logger;
+class MicrosoftBot extends EventEmitter {
+    constructor(logger, options) {
+        super();
 
-    this._directLineClientName = options.clientName !== undefined ? options.clientName : defaultDirectLineClientName;
-    this._directLineSecrect = options.secret;
-    this._pollInterval = options.pollInterval !== undefined ? options.pollInterval : defaultPollInterval;
+        this._logger = logger;
+        this._directLineClientName = options.clientName !== undefined ? options.clientName : defaultDirectLineClientName;
+        this._directLineSecrect = options.secret;
+        this._pollInterval = options.pollInterval !== undefined ? options.pollInterval : defaultPollInterval;
+        this._client;
 
-    this._client;
-    this._conversationId;
-    this._sendBotReply;
-}
+        this._conntectClientsByConversationId = {};
+        this._conversationIdByClientId = {};
 
-MicrosoftBot.prototype.createNewConversation = function(sendBotReply) {
-    const self = this;
+        this._pollMessages = (client, conversationId) => {
+            var self = this;
+            var watermark = null;
+            
+            setInterval(() => {
+                client.Conversations.Conversations_GetMessages({ conversationId: conversationId, watermark: watermark })
+                    .then((response) => {
+                        watermark = response.obj.watermark;  // use watermark so subsequent requests skip old messages 
+                        return response.obj.messages;
+                    })
+                    .then((messages) => {
+                        if (messages && messages.length) {
+                            // ignore own messages
+                            messages = messages.filter((m) => m.from !== self._directLineClientName);
 
-    this._sendBotReply = sendBotReply;
+                            if (messages.length) {
+                                // all messages will have the same recipient
+                                let recipient = this._conntectClientsByConversationId[messages[0].conversationId];
 
-    // create the directline connection here
-    var directLineClient = new Swagger(
-        {
-            spec: directLineSpec,
-            usePromise: true,
-        }).then((client) => {
-            this._logger.debug('Swagger client ready');
+                                // forward message to viber
+                                messages.forEach((msg) => {
+                                    this.emit(MbfEvents.MBF_MESSAGE_RECEIVED, recipient, this._toViberMessage(msg));
+                                }, self);
+                            }
+                        };
+                    })
+            }, this._pollInterval);
+        };
 
-            // add authorization header
-            client.clientAuthorizations.add('AuthorizationBotConnector', new Swagger.ApiKeyAuthorization('Authorization', 'BotConnector ' + this._directLineSecrect, 'header'));
-            return client;
-        }).catch((err) =>
-            this._logger.error('Error initializing DirectLine client', err));
+        this._toViberMessage = (mbfBotMessage) => {
+            let viberMsg;
 
-    // once the client is ready, create a new conversation 
-    directLineClient.then((client) => {
-        self._client = client;
-        self._client.Conversations.Conversations_NewConversation()                              // create conversation
-            .then((response) => response.obj.conversationId)                                    // obtain id
-            .then((conversationId) => {
-                this._logger.debug('Conversation ready. ConversationId: ' + conversationId);
+            if (mbfBotMessage.channelData) {
+                switch (mbfBotMessage.channelData.contentType) {
+                    case "image/png":
+                        viberMsg = new PictureMessage(
+                            mbfBotMessage.channelData.contentUrl, 
+                            mbfBotMessage.text, 
+                            mbfBotMessage.channelData.thumbnailUrl);
+                        break;
+                    default:
+                        // nothing to do
+                        break;
+                }
+            }
+            else {
+                viberMsg = new TextMessage(mbfBotMessage.text);
+            }
 
-                self._conversationId = conversationId;
-                pollMessages(self, client, conversationId);                                     // start polling messages from bot
-            });
-    });
-};
-
-MicrosoftBot.prototype.sendMessage = function(message) {
-    if (this._client == null || this._conversationId == null) {
-        this._logger.error('Error sending message: client or conversation not ready');
-        return;
-    }
-
-        // send message
-    this._client.Conversations.Conversations_PostMessage(
-    {
-        conversationId: this._conversationId,
-        message: {
-            from: this._directLineClientName,
-            text: message
+            return viberMsg;
         }
-    }).catch((err) => this._logger.error('Error sending message:', err));
-}
 
-// Poll Messages from conversation using DirectLine client
-function pollMessages(botInstance, client, conversationId) {
-    var watermark = null;
-    setInterval(() => {
-        client.Conversations.Conversations_GetMessages({ conversationId: conversationId, watermark: watermark })
-            .then((response) => {
-                watermark = response.obj.watermark;                                 // use watermark so subsequent requests skip old messages 
-                return response.obj.messages;
-            })
-            .then((messages) => {
-                if (messages && messages.length) {
-                    // ignore own messages
-                    messages = messages.filter((m) => m.from !== botInstance._directLineClientName);
-
-                    if (messages.length) {
-                        // forward message to viber
-                        messages.forEach(forwardMessageToViber, botInstance);
-                    }
+        this._toMbfBotMessage = (viberMessage) => {
+            let botMessage;
+            
+            if (viberMessage instanceof TextMessage) {
+                botMessage = {
+                    from: this._directLineClientName,
+                    text: viberMessage.text,
+                    channelData: null,
+                    images: null,
+                    attachments: null
                 };
-            })
-    }, botInstance._pollInterval);
-}
+            }
+            else {
+                throw err;
+            }
 
-function forwardMessageToViber(message) {   
-    let viberMsg;
-
-    if (message.channelData) {
-        switch (message.channelData.contentType) {
-            case "image/png":
-                viberMsg = new PictureMessage(message.channelData.contentUrl, message.text, message.channelData.thumbnailUrl);
-                break;
-            default:
-                // nothing to do
-                break;
+            return botMessage;
         }
     }
-    else {
-        viberMsg = new TextMessage(message.text);
+
+    createNewConversation(userProfile) {
+        var up = userProfile;
+        var self = this;
+        // var profile = viberClient.userProfile;
+
+        var logger = this._logger;
+        var directLineSecret = this._directLineSecrect;
+
+        // create the directline connection here
+        let directLineClient = new Swagger(
+            {
+                spec: directLineSpec,
+                usePromise: true,
+            }).then((client) => {
+                logger.debug('Swagger client ready');
+
+                // add authorization header
+                client.clientAuthorizations.add('AuthorizationBotConnector', new Swagger.ApiKeyAuthorization('Authorization', 'BotConnector ' + directLineSecret, 'header'));
+                return client;
+            }).catch((err) =>
+                logger.error('Error initializing DirectLine client', err));
+
+        // once the client is ready, create a new conversation 
+        directLineClient.then((client) => {
+            self._client = client;
+            self._client.Conversations.Conversations_NewConversation()                             
+                .then((response) => response.obj.conversationId)  
+                .then((conversationId) => {
+                    logger.debug('Conversation ready. ConversationId: ' + conversationId);
+
+                    // for lookup purposes
+                    self._conntectClientsByConversationId[conversationId] = up;
+                    self._conversationIdByClientId[up.id] = conversationId;
+
+                    // start polling for new messages sent by the MBF bot
+                    self._pollMessages(client, conversationId);                                     
+
+                    self.emit(MbfEvents.MBF_CONVERSATION_STARTED, conversationId);
+                });
+        });
     }
 
-    this._sendBotReply(viberMsg);
+    sendMessage(userProfile, message) {
+        this._client.Conversations.Conversations_PostMessage(
+        {
+            conversationId: this._conversationIdByClientId[userProfile.id],
+            message: this._toMbfBotMessage(message)
+        }).catch((err) => this._logger.error('Error sending message:', err));
+    }
 }
 
 module.exports.MicrosoftBot = MicrosoftBot;

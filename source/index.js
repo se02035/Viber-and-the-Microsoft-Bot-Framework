@@ -6,7 +6,7 @@ const BotEvents = require('viber-bot').Events;
 const TextMessage = require('viber-bot').Message.Text;
 
 // Microsoft Bot Framework (MBF) - DirectLine - Connector 
-const MicrosoftBot = require('./microsoftBotConnectorNew').MicrosoftBotNew;
+const MicrosoftBot = require('./microsoftBotConnector').MicrosoftBot;
 const MbfEvents = require('./mbf-events');
 
 // Utilities
@@ -17,12 +17,12 @@ require('dotenv').config();
 // config items
 const ViberBotName = 'MBF Connector';
 const ViberBotImageUrl = 'https://raw.githubusercontent.com/devrelv/drop/master/151-icon.png';
-const ViberPublicAccountAccessTokenKey = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';   // ToDo: Replace with your Viber Public Account access token
+const ViberPublicAccountAccessTokenKey = 'xxxxxxxxxxxxxxxxxx';   // ToDo: Replace with your Viber Public Account access token
 
 const MicrosoftBotDirectLineClientName = 'ViberBotConnector';
-const MicrosoftBotDirectLineSecret = 'xxxxxxxxxxxxxxxxxxxxxxxxxxx';           // ToDo: Replace with your Microsoft Bot Framework DirectLine secret
+const MicrosoftBotDirectLineSecret = 'xxxxxxxxxxxxxxxxxxxxxxx';           // ToDo: Replace with your Microsoft Bot Framework DirectLine secret
 
-const WebServerUrl = 'HTTPS://YOUR_BOT_SITE';                     // ToDo: This is the URL where the Viber bot is hosted. Has to be an external URL
+const WebServerUrl = 'https://YOUR_BOT_SITE_URL';                     // ToDo: This is the URL where the Viber bot is hosted. Has to be an external URL
 const WebServerPort = 8080;                                             // ToDo: This is the port of the Viber bot. 
 
 
