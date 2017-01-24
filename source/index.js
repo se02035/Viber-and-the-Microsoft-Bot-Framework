@@ -66,10 +66,10 @@ bot.onTextMessage(/./, (message, response) => {
     }
 });
 
-var webHookUrl = process.env.NOW_URL || process.env.HEROKU_URL || WebServerUrl;
+var webHookUrl = process.env.WEBSERVER_URL || WebServerUrl;
 if (webHookUrl) {
     const http = require('http');
-    const port = process.env.PORT || WebServerPort;
+    const port = process.env.WEBSERVER_PORT || WebServerPort;
 
     http.createServer(bot.middleware()).listen(port, () => bot.setWebhook(webHookUrl));
 } else {
