@@ -1,3 +1,5 @@
+"use strict";
+
 const EventEmitter = require('events');
 const MbfEvents = require('./mbf-events');
 
@@ -7,11 +9,7 @@ const open = require('open');
 // ATTENTION this implementation does only support the V3 bots
 const directLineSpecV3 = require('./directline-swagger-v3.json');
 
-const mime = require('mime-types');
-const url = require('url');
-const path = require('path');
-
-// incoming message translation
+// Viber Messages
 const TextMessage = require('viber-bot').Message.Text;
 const PictureMessage = require('viber-bot').Message.Picture;
 const UrlMessage = require('viber-bot').Message.Url;
@@ -20,6 +18,9 @@ const VideoMessage = require('viber-bot').Message.Video;
 const LocationMessage = require('viber-bot').Message.Location;
 const StickerMessage = require('viber-bot').Message.Sticker;
 const FileMessage = require('viber-bot').Message.File;
+
+// MBF Activities
+const MessageActivity = require(__dirname + '/activity/messageActivity.js').MessageActivity;
 
 // config items
 const defaultPollInterval = 1000;
@@ -36,8 +37,8 @@ class MicrosoftBot extends EventEmitter {
         this._pollInterval = options.pollInterval !== undefined ? options.pollInterval : defaultPollInterval;
         this._client;
 
-        this._conntectClientsByConversationId = {};
-        this._conversationIdByClientId = {};
+        this._connectedClientsByConversationId = new Map();
+        this._conversationIdByClientId = new Map();
 
         this._pollMessages = (client, conversationId) => {
             var self = this;
@@ -51,13 +52,13 @@ class MicrosoftBot extends EventEmitter {
                     })
                     .then((activities) => {
                         if (activities && activities.length) {
-                            // ignore own messages
-                            activities = activities.filter((m) => m.from !== self._directLineClientName);
+                            // get the right Viber recipient for this conversation
+                            let recipient = this._connectedClientsByConversationId.get(activities[0].conversation.id);
+                            if (recipient) {
+                                // ignore own messages -- only show replies to my messages
+                                activities = activities.filter((a) => a.from.id !== recipient.id);
 
-                            if (activities.length) {
-                                // all messages will have the same recipient
-                                let recipient = this._conntectClientsByConversationId[activities[0].conversation.id];
-                                if (recipient) {
+                                if (activities.length) {
                                     // forward message to viber
                                     activities.forEach((activity) => {
                                         this.emit(MbfEvents.MBF_MESSAGE_RECEIVED, recipient, this._toViberMessage(activity));
@@ -90,70 +91,40 @@ class MicrosoftBot extends EventEmitter {
             }
 
             return viberMsg;
-        }
+        };
 
         this._toBotActivity = (channelId, userProfile, viberMessage) => {
-            let parsedUrl;
-            let fileName;
-            let botActivity = {
-                    localTimestamp: Date.now(),
-                    serviceUrl: "https://directline.botframework.com/",
-                    channelId: channelId,
-                    from: {
-                        id: userProfile.id,
-                        name: userProfile.name
-                    },
-                    conversationAccount: {
-                        isGroup: false,
-                        id: userProfile.id,
-                        name: "Viber conversation"
-                    },
-                    locale: userProfile.language || "en",
-                    text: viberMessage.text,
-                    channelData: viberMessage.toJson(),
-                    attachments: null
-                };
+            let botActivity;
+            let botActivityArguments = { 
+                    channelId: channelId, senderId: userProfile.id, 
+                    senderName: userProfile.name, conversationAccountId: userProfile.id,
+                    locale: userProfile.language, channelData: viberMessage.toJson() };
 
             switch (viberMessage.constructor) {
                 case TextMessage:
-                    // nothing to do here
+                    botActivity = new MessageActivity(
+                        {text: viberMessage.text},
+                        botActivityArguments);
                     break;
                 case UrlMessage:
                     break;
                 case ContactMessage:
                     break;
-                case PictureMessage:                   
-                    parsedUrl = url.parse(viberMessage.url);
-                    fileName = path.basename(parsedUrl.pathname);
-                    
-                    botActivity.attachments = [
-                        {
-                            "contentType": mime.lookup(fileName),
-                            "contentUrl": viberMessage.url,
-                            "name": fileName
-                        }
-                    ];
+                case PictureMessage:           
+                    botActivity = new MessageActivity(
+                        {text: viberMessage.text, mediaUrl: viberMessage.url},
+                        botActivityArguments);
                     break;
                 case VideoMessage:
-                    parsedUrl = url.parse(viberMessage.url);
-                    fileName = path.basename(parsedUrl.pathname);
-                    
-                    botActivity.attachments = [
-                        {
-                            "contentType": mime.lookup(fileName),
-                            "contentUrl": viberMessage.url,
-                            "name": fileName
-                        }
-                    ];
+                    botActivity = new MessageActivity(
+                        {text: viberMessage.text, mediaUrl: viberMessage.url},
+                        botActivityArguments);
                     break;
                 case FileMessage:                    
-                    botActivity.attachments = [
-                        {
-                            "contentType": mime.lookup(viberMessage.filename),
-                            "contentUrl": viberMessage.url,
-                            "name": viberMessage.filename
-                        }
-                    ];
+                    botActivity = new MessageActivity(
+                        {mediaUrl: viberMessage.url},
+                        botActivityArguments);
+                    break;
 
                     break;
                 case LocationMessage:
@@ -167,12 +138,19 @@ class MicrosoftBot extends EventEmitter {
 
             return botActivity;
         }
+        
+        this._postActivity = (conversationId, activity) => {
+            this._client.Conversations.Conversations_PostActivity(
+            {
+                conversationId: conversationId,
+                activity: activity.getBotActivity()
+            }).catch((err) => this._logger.error('Error sending message:', err));
+        };
     };
 
     createNewConversation(userProfile) {
         var up = userProfile;
         var self = this;
-        // var profile = viberClient.userProfile;
 
         var logger = this._logger;
         var directLineSecret = this._directLineSecrect;
@@ -201,8 +179,8 @@ class MicrosoftBot extends EventEmitter {
                     logger.debug('Conversation ready. ConversationId: ' + conversationId);
 
                     // for lookup purposes
-                    self._conntectClientsByConversationId[conversationId] = up;
-                    self._conversationIdByClientId[up.id] = conversationId;
+                    self._connectedClientsByConversationId.set(conversationId, up);
+                    self._conversationIdByClientId.set(up.id, conversationId);
 
                     // start polling for new messages sent by the MBF bot
                     self._pollMessages(client, conversationId);                                     
@@ -212,12 +190,21 @@ class MicrosoftBot extends EventEmitter {
         });
     }
 
+    closeConversation(clientId) {
+        let conversationId = this._conversationIdByClientId.get(clientId);
+        
+        this._conversationIdByClientId.delete(clientId);
+        // ensure that there is already a conversation
+        if (conversationId !== undefined) {
+            this._connectedClientsByConversationId.delete(conversationId);
+        }
+    }
+
     sendMessage(userProfile, message) {
-        this._client.Conversations.Conversations_PostActivity(
-        {
-            conversationId: this._conversationIdByClientId[userProfile.id],
-            activity: this._toBotActivity(conversationId, userProfile, message)
-        }).catch((err) => this._logger.error('Error sending message:', err));
+        let conversationId = this._conversationIdByClientId.get(userProfile.id);
+        let userMessage = this._toBotActivity(conversationId, userProfile, message);
+
+        this._postActivity(conversationId, userMessage);
     }
 }
 

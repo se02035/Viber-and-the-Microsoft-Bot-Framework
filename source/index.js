@@ -6,8 +6,8 @@ const BotEvents = require('viber-bot').Events;
 const TextMessage = require('viber-bot').Message.Text;
 
 // Microsoft Bot Framework (MBF) - DirectLine - Connector 
-const MicrosoftBot = require('./microsoftBotConnector').MicrosoftBot;
-const MbfEvents = require('./mbf-events');
+const MicrosoftBot = require('./lib/microsoftBotConnector').MicrosoftBot;
+const MbfEvents = require('./lib/mbf-events');
 
 // Utilities
 const winston = require('winston');
@@ -58,6 +58,10 @@ bot.onSubscribe(response => {
     // create a connection to the MBF bot
     mbfBot.createNewConversation(response.userProfile);
 });
+
+bot.onUnsubscribe(response => {
+    mbfBot.closeConversation(response);
+})
 
 bot.on(BotEvents.MESSAGE_RECEIVED, (message, response) => {
     // send an user message to the MBF bot
