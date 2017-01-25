@@ -3,7 +3,10 @@ const MbfEvents = require('./mbf-events');
 
 const Swagger = require('swagger-client');
 const open = require('open');
-const directLineSpec = require('./directline-swagger.json');
+
+// ATTENTION this implementation does only support the V3 bots
+const directLineSpecV3 = require('./directline-swagger-v3.json');
+
 const mime = require('mime-types');
 const url = require('url');
 const path = require('path');
@@ -41,24 +44,25 @@ class MicrosoftBot extends EventEmitter {
             var watermark = null;
             
             setInterval(() => {
-                client.Conversations.Conversations_GetMessages({ conversationId: conversationId, watermark: watermark })
+                client.Conversations.Conversations_GetActivities({ conversationId: conversationId, watermark: watermark })
                     .then((response) => {
                         watermark = response.obj.watermark;  // use watermark so subsequent requests skip old messages 
-                        return response.obj.messages;
+                        return response.obj.activities;
                     })
-                    .then((messages) => {
-                        if (messages && messages.length) {
+                    .then((activities) => {
+                        if (activities && activities.length) {
                             // ignore own messages
-                            messages = messages.filter((m) => m.from !== self._directLineClientName);
+                            activities = activities.filter((m) => m.from !== self._directLineClientName);
 
-                            if (messages.length) {
+                            if (activities.length) {
                                 // all messages will have the same recipient
-                                let recipient = this._conntectClientsByConversationId[messages[0].conversationId];
-
-                                // forward message to viber
-                                messages.forEach((msg) => {
-                                    this.emit(MbfEvents.MBF_MESSAGE_RECEIVED, recipient, this._toViberMessage(msg));
-                                }, self);
+                                let recipient = this._conntectClientsByConversationId[activities[0].conversation.id];
+                                if (recipient) {
+                                    // forward message to viber
+                                    activities.forEach((activity) => {
+                                        this.emit(MbfEvents.MBF_MESSAGE_RECEIVED, recipient, this._toViberMessage(activity));
+                                    }, self);
+                                }
                             }
                         };
                     })
@@ -88,17 +92,27 @@ class MicrosoftBot extends EventEmitter {
             return viberMsg;
         }
 
-        this._toMbfBotMessage = (viberMessage) => {
+        this._toBotActivity = (channelId, userProfile, viberMessage) => {
             let parsedUrl;
             let fileName;
-            
-            let botMessage = {
-                        from: this._directLineClientName,
-                        text: viberMessage.text,
-                        channelData: viberMessage.toJson(),
-                        images: null,
-                        attachments: null
-                    };
+            let botActivity = {
+                    localTimestamp: Date.now(),
+                    serviceUrl: "https://directline.botframework.com/",
+                    channelId: channelId,
+                    from: {
+                        id: userProfile.id,
+                        name: userProfile.name
+                    },
+                    conversationAccount: {
+                        isGroup: false,
+                        id: userProfile.id,
+                        name: "Viber conversation"
+                    },
+                    locale: userProfile.language || "en",
+                    text: viberMessage.text,
+                    channelData: viberMessage.toJson(),
+                    attachments: null
+                };
 
             switch (viberMessage.constructor) {
                 case TextMessage:
@@ -108,13 +122,11 @@ class MicrosoftBot extends EventEmitter {
                     break;
                 case ContactMessage:
                     break;
-                case PictureMessage:
-                    botMessage.images = [viberMessage.url];
-                    
+                case PictureMessage:                   
                     parsedUrl = url.parse(viberMessage.url);
                     fileName = path.basename(parsedUrl.pathname);
                     
-                    botMessage.attachments = [
+                    botActivity.attachments = [
                         {
                             "contentType": mime.lookup(fileName),
                             "contentUrl": viberMessage.url,
@@ -123,12 +135,10 @@ class MicrosoftBot extends EventEmitter {
                     ];
                     break;
                 case VideoMessage:
-                    botMessage.images = [viberMessage.url];
-
                     parsedUrl = url.parse(viberMessage.url);
                     fileName = path.basename(parsedUrl.pathname);
                     
-                    botMessage.attachments = [
+                    botActivity.attachments = [
                         {
                             "contentType": mime.lookup(fileName),
                             "contentUrl": viberMessage.url,
@@ -137,7 +147,7 @@ class MicrosoftBot extends EventEmitter {
                     ];
                     break;
                 case FileMessage:                    
-                    botMessage.attachments = [
+                    botActivity.attachments = [
                         {
                             "contentType": mime.lookup(viberMessage.filename),
                             "contentUrl": viberMessage.url,
@@ -155,10 +165,9 @@ class MicrosoftBot extends EventEmitter {
                     break;
             }
 
-            return botMessage;
+            return botActivity;
         }
     };
-
 
     createNewConversation(userProfile) {
         var up = userProfile;
@@ -171,13 +180,14 @@ class MicrosoftBot extends EventEmitter {
         // create the directline connection here
         let directLineClient = new Swagger(
             {
-                spec: directLineSpec,
+                spec: directLineSpecV3,
                 usePromise: true,
             }).then((client) => {
                 logger.debug('Swagger client ready');
 
                 // add authorization header
-                client.clientAuthorizations.add('AuthorizationBotConnector', new Swagger.ApiKeyAuthorization('Authorization', 'BotConnector ' + directLineSecret, 'header'));
+                client.clientAuthorizations.add('AuthorizationBotConnector', new Swagger.ApiKeyAuthorization('Authorization', 'Bearer ' + directLineSecret, 'header'));
+                
                 return client;
             }).catch((err) =>
                 logger.error('Error initializing DirectLine client', err));
@@ -185,7 +195,7 @@ class MicrosoftBot extends EventEmitter {
         // once the client is ready, create a new conversation 
         directLineClient.then((client) => {
             self._client = client;
-            self._client.Conversations.Conversations_NewConversation()                             
+            self._client.Conversations.Conversations_StartConversation()                             
                 .then((response) => response.obj.conversationId)  
                 .then((conversationId) => {
                     logger.debug('Conversation ready. ConversationId: ' + conversationId);
@@ -198,15 +208,15 @@ class MicrosoftBot extends EventEmitter {
                     self._pollMessages(client, conversationId);                                     
 
                     self.emit(MbfEvents.MBF_CONVERSATION_STARTED, conversationId);
-                });
+                }).catch((err) => logger.error('Error initializing DirectLine conversation', err));
         });
     }
 
     sendMessage(userProfile, message) {
-        this._client.Conversations.Conversations_PostMessage(
+        this._client.Conversations.Conversations_PostActivity(
         {
             conversationId: this._conversationIdByClientId[userProfile.id],
-            message: this._toMbfBotMessage(message)
+            activity: this._toBotActivity(conversationId, userProfile, message)
         }).catch((err) => this._logger.error('Error sending message:', err));
     }
 }
