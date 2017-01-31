@@ -55,6 +55,7 @@ class MicrosoftBot extends EventEmitter {
                             // get the right Viber recipient for this conversation
                             let recipient = this._connectedClientsByConversationId.get(activities[0].conversation.id);
                             if (recipient) {
+
                                 // ignore own messages -- only show replies to my messages
                                 activities = activities.filter((a) => a.from.id !== recipient.id);
 
@@ -107,8 +108,10 @@ class MicrosoftBot extends EventEmitter {
                         botActivityArguments);
                     break;
                 case UrlMessage:
+                    botActivity = new MessageActivity({}, botActivityArguments);
                     break;
                 case ContactMessage:
+                    botActivity = new MessageActivity({}, botActivityArguments);
                     break;
                 case PictureMessage:           
                     botActivity = new MessageActivity(
@@ -125,11 +128,11 @@ class MicrosoftBot extends EventEmitter {
                         {mediaUrl: viberMessage.url},
                         botActivityArguments);
                     break;
-
-                    break;
                 case LocationMessage:
+                    botActivity = new MessageActivity({}, botActivityArguments);
                     break;
                 case StickerMessage:
+                    botActivity = new MessageActivity({}, botActivityArguments);
                     break;
                 default:
                     throw new Error('unknown message type'); 
@@ -145,6 +148,25 @@ class MicrosoftBot extends EventEmitter {
                 conversationId: conversationId,
                 activity: activity.getBotActivity()
             }).catch((err) => this._logger.error('Error sending message:', err));
+        };
+
+        this._createNewConversation = (userProfile) => {
+            var self = this;
+
+            self._client.Conversations.Conversations_StartConversation()                             
+                .then((response) => response.obj.conversationId)  
+                .then((conversationId) => {
+                    logger.debug('Conversation ready. ConversationId: ' + conversationId);
+
+                    // for lookup purposes
+                    self._connectedClientsByConversationId.set(conversationId, userProfile);
+                    self._conversationIdByClientId.set(userProfile.id, conversationId);
+
+                    // start polling for new messages sent by the MBF bot
+                    self._pollMessages(self._client, conversationId);                                     
+
+                    self.emit(MbfEvents.MBF_CONVERSATION_STARTED, conversationId);
+                }).catch((err) => logger.error('Error initializing DirectLine conversation', err));
         };
     };
 
@@ -172,21 +194,8 @@ class MicrosoftBot extends EventEmitter {
 
         // once the client is ready, create a new conversation 
         directLineClient.then((client) => {
-            self._client = client;
-            self._client.Conversations.Conversations_StartConversation()                             
-                .then((response) => response.obj.conversationId)  
-                .then((conversationId) => {
-                    logger.debug('Conversation ready. ConversationId: ' + conversationId);
-
-                    // for lookup purposes
-                    self._connectedClientsByConversationId.set(conversationId, up);
-                    self._conversationIdByClientId.set(up.id, conversationId);
-
-                    // start polling for new messages sent by the MBF bot
-                    self._pollMessages(client, conversationId);                                     
-
-                    self.emit(MbfEvents.MBF_CONVERSATION_STARTED, conversationId);
-                }).catch((err) => logger.error('Error initializing DirectLine conversation', err));
+            this._client = client;
+            this._createNewConversation(up);
         });
     }
 
