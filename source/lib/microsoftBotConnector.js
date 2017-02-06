@@ -1,13 +1,13 @@
 "use strict";
 
 const EventEmitter = require('events');
-const MbfEvents = require('./mbf-events');
+const MbfEvents = require(__dirname + '/mbf-events');
 
 const Swagger = require('swagger-client');
 const open = require('open');
 
 // ATTENTION this implementation does only support the V3 bots
-const directLineSpecV3 = require('./directline-swagger-v3.json');
+const directLineSpecV3 = require(__dirname + '/directline-swagger-v3.json');
 
 // Viber Messages
 const TextMessage = require('viber-bot').Message.Text;
@@ -28,10 +28,12 @@ const defaultDirectLineClientName = 'ViberBotConnector';
 const defaultDirectLineSecret = 'xxxxxxxxxxxxxxxxxxxxx'; // ToDo: Replace with your Microsoft Bot Framework DirectLine secret
 
 class MicrosoftBot extends EventEmitter {
-    constructor(logger, options) {
+    constructor(logger, platform, options) {
         super();
 
         this._logger = logger;
+        this._platform = platform;
+
         this._directLineClientName = options.clientName !== undefined ? options.clientName : defaultDirectLineClientName;
         this._directLineSecrect = options.secret;
         this._pollInterval = options.pollInterval !== undefined ? options.pollInterval : defaultPollInterval;
@@ -62,7 +64,7 @@ class MicrosoftBot extends EventEmitter {
                                 if (activities.length) {
                                     // forward message to viber
                                     activities.forEach((activity) => {
-                                        this.emit(MbfEvents.MBF_MESSAGE_RECEIVED, recipient, this._toViberMessage(activity));
+                                        this.emit(MbfEvents.MBF_MESSAGE_RECEIVED, recipient, this_platform.parse(activity));
                                     }, self);
                                 }
                             }
@@ -71,77 +73,6 @@ class MicrosoftBot extends EventEmitter {
             }, this._pollInterval);
         };
 
-        this._toViberMessage = (mbfBotMessage) => {
-            let viberMsg;
-
-            if (mbfBotMessage.channelData) {
-                switch (mbfBotMessage.channelData.contentType) {
-                    case "image/png":
-                        viberMsg = new PictureMessage(
-                            mbfBotMessage.channelData.contentUrl, 
-                            mbfBotMessage.text, 
-                            mbfBotMessage.channelData.thumbnailUrl);
-                        break;
-                    default:
-                        // nothing to do
-                        break;
-                }
-            }
-            else {
-                viberMsg = new TextMessage(mbfBotMessage.text);
-            }
-
-            return viberMsg;
-        };
-
-        this._toBotActivity = (channelId, userProfile, viberMessage) => {
-            let botActivity;
-            let botActivityArguments = { 
-                    channelId: channelId, senderId: userProfile.id, 
-                    senderName: userProfile.name, conversationAccountId: userProfile.id,
-                    locale: userProfile.language, channelData: viberMessage.toJson() };
-
-            switch (viberMessage.constructor) {
-                case TextMessage:
-                    botActivity = new MessageActivity(
-                        {text: viberMessage.text},
-                        botActivityArguments);
-                    break;
-                case UrlMessage:
-                    botActivity = new MessageActivity({}, botActivityArguments);
-                    break;
-                case ContactMessage:
-                    botActivity = new MessageActivity({}, botActivityArguments);
-                    break;
-                case PictureMessage:           
-                    botActivity = new MessageActivity(
-                        {text: viberMessage.text, mediaUrl: viberMessage.url},
-                        botActivityArguments);
-                    break;
-                case VideoMessage:
-                    botActivity = new MessageActivity(
-                        {text: viberMessage.text, mediaUrl: viberMessage.url},
-                        botActivityArguments);
-                    break;
-                case FileMessage:                    
-                    botActivity = new MessageActivity(
-                        {mediaUrl: viberMessage.url},
-                        botActivityArguments);
-                    break;
-                case LocationMessage:
-                    botActivity = new MessageActivity({}, botActivityArguments);
-                    break;
-                case StickerMessage:
-                    botActivity = new MessageActivity({}, botActivityArguments);
-                    break;
-                default:
-                    throw new Error('unknown message type'); 
-                    break;
-            }
-
-            return botActivity;
-        }
-        
         this._postActivity = (conversationId, activity) => {
             this._client.Conversations.Conversations_PostActivity(
             {
@@ -211,10 +142,10 @@ class MicrosoftBot extends EventEmitter {
 
     sendMessage(userProfile, message) {
         let conversationId = this._conversationIdByClientId.get(userProfile.id);
-        let userMessage = this._toBotActivity(conversationId, userProfile, message);
+        let userMessage = this._platform.convert(conversationId, userProfile, message);
 
         this._postActivity(conversationId, userMessage);
     }
 }
 
-module.exports.MicrosoftBot = MicrosoftBot;
+module.exports = MicrosoftBot;

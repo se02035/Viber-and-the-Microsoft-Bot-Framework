@@ -1,5 +1,5 @@
 {
-  "name": "mbfconnectedviberbot",
+  "name": "mbf-viber-bot",
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "dotenv": "^4.0.0",
     "open": "0.0.5",

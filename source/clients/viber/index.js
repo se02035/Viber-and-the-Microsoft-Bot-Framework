@@ -6,8 +6,9 @@ const BotEvents = require('viber-bot').Events;
 const TextMessage = require('viber-bot').Message.Text;
 
 // Microsoft Bot Framework (MBF) - DirectLine - Connector 
-const MicrosoftBot = require('./lib/microsoftBotConnector').MicrosoftBot;
-const MbfEvents = require('./lib/mbf-events');
+const MbfBotConnector = require('mbf-directline').Core;
+const MbfEvents = require('mbf-directline').Events;
+const MbfPlatformViber = require('mbf-directline').Platform.Viber;
 
 // Utilities
 const winston = require('winston');
@@ -44,7 +45,7 @@ const bot = new ViberBot(logger, {
 });
 
 // create the MBF bot instance
-const mbfBot = new MicrosoftBot(logger, {
+const mbfBot = new MbfBotConnector(logger, new MbfPlatformViber(), {
     clientName: MicrosoftBotDirectLineClientName, 
     secret: process.env.MICROSOFT_BOT_DIRECT_LINE_SECRET || MicrosoftBotDirectLineSecret, 
     pollInterval: process.env.MICROSOFT_BOT_POLL_INTERVAL || 1000});
