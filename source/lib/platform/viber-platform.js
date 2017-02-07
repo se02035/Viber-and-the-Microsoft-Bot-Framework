@@ -1,6 +1,16 @@
 "use strict";
 
 const BotPlatform = require(__dirname + '/bot-platform.js');
+const MessageActivity = require('../activity/messageActivity').MessageActivity;
+
+const TextMessage = require('viber-bot').Message.Text;
+const PictureMessage = require('viber-bot').Message.Picture;
+const UrlMessage = require('viber-bot').Message.Url;
+const ContactMessage = require('viber-bot').Message.Contact;
+const VideoMessage = require('viber-bot').Message.Video;
+const LocationMessage = require('viber-bot').Message.Location;
+const StickerMessage = require('viber-bot').Message.Sticker;
+const FileMessage = require('viber-bot').Message.File;
 
 class ViberPlatform extends BotPlatform {
     constructor() {
@@ -14,37 +24,37 @@ class ViberPlatform extends BotPlatform {
                 senderName: userData.name, conversationAccountId: userData.id,
                 locale: userData.language, channelData: platformMessage.toJson() };
 
-        switch (viberMessage.constructor) {
-            case TextMessage:
+        switch (platformMessage.constructor.name) {
+            case 'TextMessage':
                 botActivity = new MessageActivity(
                     {text: platformMessage.text},
                     botActivityArguments);
                 break;
-            case UrlMessage:
+            case 'UrlMessage':
                 botActivity = new MessageActivity({}, botActivityArguments);
                 break;
-            case ContactMessage:
+            case 'ContactMessage':
                 botActivity = new MessageActivity({}, botActivityArguments);
                 break;
-            case PictureMessage:           
+            case 'PictureMessage':           
                 botActivity = new MessageActivity(
                     {text: platformMessage.text, mediaUrl: platformMessage.url},
                     botActivityArguments);
                 break;
-            case VideoMessage:
+            case 'VideoMessage':
                 botActivity = new MessageActivity(
                     {text: platformMessage.text, mediaUrl: platformMessage.url},
                     botActivityArguments);
                 break;
-            case FileMessage:                    
+            case 'FileMessage':                    
                 botActivity = new MessageActivity(
                     {mediaUrl: platformMessage.url},
                     botActivityArguments);
                 break;
-            case LocationMessage:
+            case 'LocationMessage':
                 botActivity = new MessageActivity({}, botActivityArguments);
                 break;
-            case StickerMessage:
+            case 'StickerMessage':
                 botActivity = new MessageActivity({}, botActivityArguments);
                 break;
             default:

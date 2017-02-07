@@ -64,7 +64,7 @@ class MicrosoftBot extends EventEmitter {
                                 if (activities.length) {
                                     // forward message to viber
                                     activities.forEach((activity) => {
-                                        this.emit(MbfEvents.MBF_MESSAGE_RECEIVED, recipient, this_platform.parse(activity));
+                                        this.emit(MbfEvents.MBF_MESSAGE_RECEIVED, recipient, this._platform.parse(activity));
                                     }, self);
                                 }
                             }

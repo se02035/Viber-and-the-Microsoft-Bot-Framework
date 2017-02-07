@@ -3,7 +3,7 @@
 
 The Microsoft Bot Framework (MBF) provides a couple of channels which enables bot developers to easily connect their bots to a limited number of platforms (e.g. Skype, Facebook Messenger, Telegram, etc). To due the openness of MBF, it is also possible to integrate with other applications/platforms. 
 
-This NodeJS solution demonstrates how to connect Viber's bot platform with Microsoft's Bot Framework (MBF). 
+This NodeJS solution demonstrates how to connect Viber's bot platform with Microsoft's Bot Framework (MBF). Being able to integrate with Microsoft's Bot Framework, provides a way to bring available MBF bots to Viber without changing the bot's implementation.
 
 ## Prerequisites
 
@@ -15,9 +15,9 @@ This NodeJS solution demonstrates how to connect Viber's bot platform with Micro
 
 ## Solution Overview
 
-The visualization below illustrates the overall setup of this implementation. 
+The visualization below illustrates the major building blocks and how the Viber app will be able to communicate with a bot based on the Microsoft Bot Framework.
 
-**---------TODO-------**
+![this is my test image](./doc/img/DirectLineArchitecture.png)
 
 Architectural Overview - Viber -> Connector Lib -> MBF Bot
 
@@ -55,6 +55,8 @@ Architectural Overview - Client package / Integration
 ## Setup
 
 ### Create a Viber Public Account
+> **Note**: The Public Account does not have to be published. 
+
 Its super easy to create you own public Account. Just apply for a Public Account at [https://www.viber.com/en/public-accounts](https://www.viber.com/en/public-accounts "https://www.viber.com/en/public-accounts"). It shouldn't take too long until your application gets approved (in fact, if everything goes well, it's supposed to be matter of minutes).
 
 Once it's approved start creating your Public Account by following the procedure described on Viber's Developer Hub ([https://developers.viber.com/public-accounts/index.html#public-accounts](https://developers.viber.com/public-accounts/index.html#public-accounts "https://developers.viber.com/public-accounts/index.html#public-accounts")). 
@@ -62,6 +64,8 @@ Once it's approved start creating your Public Account by following the procedure
 > **Important**: Ensure that you copy your authentication token. This is needed in your bot implementation and allows your Viber bot to integrate with the Public Account platform.
 
 ### Enable Direct Line support for your MBF Bot
+
+> **Note**: The current solution does only support the Direct Line v3. 
 
 As the MBF doesn't come with a out-of-box Viber channel, we have to use something else here. The MBF's Directline channel acts as a multi-purpose communication channel that enables the integration of MBF bots into any application. 
 
