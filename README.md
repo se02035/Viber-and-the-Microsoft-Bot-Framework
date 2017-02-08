@@ -1,9 +1,9 @@
 
 # Connect the Viber bot platform with the Microsoft Bot Framework
 
-The Microsoft Bot Framework (MBF) provides a couple of channels which enables bot developers to easily connect their bots to a limited number of platforms (e.g. Skype, Facebook Messenger, Telegram, etc). To due the openness of MBF, it is also possible to integrate with other applications/platforms. 
+The Microsoft Bot Framework (MBF) provides a couple of channels which enables bot developers to easily connect their bots to a limited number of platforms (e.g. Skype, Facebook Messenger, Telegram, etc). To due the openness of MBF, it is also possible to integrate other applications ro bot platforms like Viber's Public Accounts. 
 
-This NodeJS solution demonstrates how to connect Viber's bot platform with Microsoft's Bot Framework (MBF). Being able to integrate with Microsoft's Bot Framework, provides a way to bring available MBF bots to Viber without changing the bot's implementation.
+This NodeJS solution demonstrates how to connect Viber's bot platform with MBF. Being able to integrate with Microsoft's Bot Framework, provides a way to bring available MBF bots to Viber and boosting the bots user reach.
 
 ## Prerequisites
 
@@ -15,44 +15,44 @@ This NodeJS solution demonstrates how to connect Viber's bot platform with Micro
 
 ## Solution Overview
 
-The visualization below illustrates the major building blocks and how the Viber app will be able to communicate with a bot based on the Microsoft Bot Framework.
+The visualization below illustrates the solution's major building blocks and how the Viber mobile app will be able to communicate with a bot based on the Microsoft Bot Framework. 
 
 ![this is my test image](./doc/img/DirectLineArchitecture.png)
 
-Architectural Overview - Viber -> Connector Lib -> MBF Bot
-
-**---------TODO-------**
-
-The implementation provided in this repo provides the following packages:
-
-1. Generic Directline library package. 
-2. Client (e.g. Viber) package.
+The implementation provided in this repo consists of the following packages: '*Generic Directline library package*' and '*Client Package for Viber*'.
 
 ### Generic Directline Libary package
-This is a generic library which wraps the currently available Directline (v3) API. The implementation is platform agnostic, which means there are no hard dependencies to any other bot platform (e.g. Viber bot platform). This allows to integrate this library into any bot platform by just providing a small piece of of platform-specific mapping code. 
+This generic library wraps the currently available MBF Directline (v3) API, which enables the MBF communication. The major parts of this Directline are completely platform agnostic, which means there are no hard dependencies to any other bot platform (like the Viber bot platform).  This allows to use this ibrary in any other bot platform, as well. 
 
-**---------TODO-------**
+There is only one small component called '*Platform*' maps MBF activities to messages of the specific bot platform. Needless to say, that the different bot platforms use a different message structure (sometimes including features that are unique on a certain platform). 
 
-Architectural Overview - Library Package
-
-**---------TODO-------**
-
-The components of the library are:
+The Directline Library package contains the following modules:
 
 - **Core**. This module contains the core Diretline abstraction. 
 - **Events**. Enumeration of events the core module will emit.
-- **Activities**. Actual MBF activities. Currently, the following activity types are supported: ConversationUpdate, Message
-- **Platforms**. Platform-specific mapping code. Since every platform has different data/message types, the connector has to know how to convertTo and convertFrom MBF message activities.
+- **Activities**. Actual MBF activities. Currently, the following activity types are supported: '*ConversationUpdate*' and '*Message*'
+- **Platforms**. Platform-specific mapping code.
 
-### Client (e.g. Viber) package
+This table shows which native messages are supported on which platform:
 
-**---------TODO-------**
+| Message  | Viber |
+|----------|:-----:|
+| Text     |  yes  |
+| Picture  |  yes  |
+| Url      |  yes  |
+| Contact  |   no  |
+| Video    |  yes  |
+| Location |   no  |
+| Sticker  |   no  |
+| File     |  yes  |
 
-Architectural Overview - Client package / Integration
 
-**---------TODO-------**
+### Client package for Viber
+A Client package represents an MBF connector for a specific application or platform. Usually, different applications or platforms have their own message types and structure as well as message exchange protocol.
 
-## Setup
+This solution includes a Client package for Viber's chat platform (Public Account feature). It uses Viber's official NPM package. You can find more information at [Viber's Developers Hub](https://developers.viber.com/) ([https://developers.viber.com/](https://developers.viber.com/ "https://developers.viber.com/"))
+
+## Set it up
 
 ### Create a Viber Public Account
 > **Note**: The Public Account does not have to be published. 
@@ -69,21 +69,16 @@ Once it's approved start creating your Public Account by following the procedure
 
 As the MBF doesn't come with a out-of-box Viber channel, we have to use something else here. The MBF's Directline channel acts as a multi-purpose communication channel that enables the integration of MBF bots into any application. 
 
-This channel has to enabled and configured per bot. To do so, go to the Microsoft Bot Framework portal and open the specific in your 'My Bots' collection.
+This following guide will walk you through how to enable Directline for your MBF bot and get the required key that is required for the connector (screenshots below from left to right)
 
-![this is my test image](./doc/img/02-BotService-DirectLine01.PNG)
+1. As this channel hast to be enabled and configured per bot, go to the Microsoft Bot Framework portal, open your 'My Bots' collection (*screenshot #1*)
+2. Scroll down to the 'Channel' section and add the 'Direct Line' channel. (*screenhot #2*)
+3. Create a new Direct Line site, called 'Viber'. Each site comes with a pair of secrets which are required when connecting to this channel. Copy one the secrets (doesn't matter which one you take) as we'll need it in the Viber-MBF connector. When done finish the Direct Line configuration by clicking on the button at the bottom. (*screenshot #3*)
+4. Once Direct Line is enabled for a bot the channel will have the 'Enabled' property set to 'Yes' (*screenshot #4*)
+  
+![How to enable and configure the DirectLine channel for your MBF bot - 01](./doc/img/02-BotService-DirectLine01.PNG)  
 
-No scroll down to the available channels and add the 'Direct Line' channel. 
-
-![this is my test image](./doc/img/02-BotService-DirectLine02.PNG)
-
-Create a new Direct Line site, called 'Viber'. Each site comes with a pair of secrets which are required when connecting to this channel. 
-
-![this is my test image](./doc/img/02-BotService-DirectLine03.PNG)
-
-Copy one the secrets (doesn't matter which one you take) as we'll need it in the Viber-MBF connector. When done finish the Direct Line configuration by clicking on the button at the bottom. Once Direct Line is enabled for a bot the channel will have the 'Enabled' property set to 'Yes'
-
-![this is my test image](./doc/img/02-BotService-DirectLine04.PNG)
+![How to enable and configure the DirectLine channel for your MBF bot - 01](./doc/img/02-BotService-DirectLine02.PNG)  
 
 ### Linking the NPM packages
 
@@ -96,7 +91,7 @@ Currently the MBF Directline library package is not published to a NPM repositor
 	npm link mbf-directline		# link install the MBF Directline package
 	
 
-## Run
+## Run it
 
 > **Note**: Viber provides some good documentation on how to get started with the bot development on the Viber platform. Just navigate to [Viber's Development Hub](https://developers.viber.com/) ([https://developers.viber.com/](https://developers.viber.com/ "https://developers.viber.com/")) and select your preferred technology ([Node.js](https://developers.viber.com/api/nodejs-bot-api/index.html), [Python](https://developers.viber.com/api/python-bot-api/index.html), [Java](https://developers.viber.com/api/java-bot-api/index.html) or [REST](https://developers.viber.com/api/rest-bot-api/index.html)). They have a demo bot on Github ([https://github.com/Viber/sample-bot-isitup](https://github.com/Viber/sample-bot-isitup "https://github.com/Viber/sample-bot-isitup")). The Viber piece in this solutions is based on their implementation.
 
@@ -117,13 +112,18 @@ Although these parameteres can be set in code, it is recommended to set them via
 
 Once everything is configured and the Viber client package is accessible via the internet you can open up your Viber mobile app, navigate to your Public Account and start a chat. Now, these chat messages will be routed to your Viber bot implementation.
 
-**---------TODO-------**
+Here is a step by step guide on how to chat with Viber Public Account chat bot (screenshots below from left to right).
 
-Viber app (simulator) how to navigate to public account and start a chat.
+1. In the Viber mobile app, navigate to your Public Account (*screenshot #1*)
+2. Ensure that that receiving messages is enabled. This ensures that a conversation is started with the MBF bot. (*screenshot #2 - #4*)
+3. Once a conversation with the MBF bot is created you'll see the bot's greeting message; if implemented by the MBF bot developer. (*screenshot #5*)
+4. You can chat with the MBF bot. (*screenshot #6*)
 
-**---------TODO-------**
+> **Note**: If something goes wrong and you want to reset the MBF connection you can do so by stop receiving chat messages and re-enable it again (as shown in *screenshot #4*). 
 
-## Extend
+![step by step guide on how to chat with your Viber Public Account chat bot](./doc/img/03_viber-directline-bot.png)
+
+## Extend it
 
 The current structure makes it easy to integrate the Directline package with other chat platforms. If want to do so you implement the following parts:
 
