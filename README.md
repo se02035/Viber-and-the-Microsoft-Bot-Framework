@@ -85,7 +85,9 @@ This following guide will walk you through how to enable Direct Line for your MB
 
 ### Linking the NPM packages
 
-Currently the MBF Direct Line library package is not published to a NPM repository. However, by using `npm link` ([https://docs.npmjs.com/cli/link](https://docs.npmjs.com/cli/link "https://docs.npmjs.com/cli/link")) the library package can easily be linked to the client (e.g. Viber) package.
+The Direct Line Library package is also published on npmjs.com. You can find it [here](https://www.npmjs.com/package/mbf-directline) ([https://www.npmjs.com/package/mbf-directline](https://www.npmjs.com/package/mbf-directline "https://www.npmjs.com/package/mbf-directline"))
+
+Alternatively you can also link the two packages locally (this will be useful when you work on the library package). Use `npm link` ([https://docs.npmjs.com/cli/link](https://docs.npmjs.com/cli/link "https://docs.npmjs.com/cli/link")) the library package can easily be linked to the client (e.g. Viber) package.
 
     cd ./lib                    # navigate to the library packages directory
     npm link                    # create a global link to this package

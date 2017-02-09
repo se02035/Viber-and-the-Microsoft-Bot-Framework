@@ -11,12 +11,13 @@
   "license": "MIT",
   "dependencies": {
     "dotenv": "^4.0.0",
+    "mbf-directline": "0.0.1",
+    "mime-types": "^2.1.14",
     "open": "0.0.5",
     "request": "^2.79.0",
     "swagger-client": "^2.1.32",
     "viber-bot": "^1.0.6",
     "winston": "^2.3.0",
-    "winston-console-formatter": "^0.3.1",
-    "mime-types": "^2.1.14"
+    "winston-console-formatter": "^0.3.1"
   }
 }
