@@ -1,14 +1,19 @@
 
 # Connect the Viber bot platform with the Microsoft Bot Framework
 
-The Microsoft Bot Framework (MBF) provides a couple of channels which enables bot developers to easily connect their bots to a limited number of platforms (e.g. Skype, Facebook Messenger, Telegram, etc). To due the openness of MBF, it is also possible to integrate other applications ro bot platforms like Viber's Public Accounts. 
+The [Microsoft Bot Framework](https://dev.botframework.com/) ([https://dev.botframework.com/](https://dev.botframework.com/ "https://dev.botframework.com/")), shortened MBF, provides a couple of channels which enables bot developers to easily connect their bots to a limited number of platforms (e.g. Skype, Facebook Messenger, Telegram, etc). To due the openness of MBF, it is also possible to integrate other applications ro bot platforms like Viber's Public Accounts. 
 
-This NodeJS solution demonstrates how to connect Viber's bot platform with MBF. Being able to integrate with Microsoft's Bot Framework, provides a way to bring available MBF bots to Viber and boosting the bots user reach.
+I recently worked with a partner on a project which required the integration of MBF bots with the popular [Viber](http://www.viber.com) ([http://www.viber.com](http://www.viber.com)) chat platform. Luckily, Viber already has its own bot platform that is a part of a feature called '[Public Accounts](https://www.viber.com/en/public-accounts)' ([https://www.viber.com/en/public-accounts](https://www.viber.com/en/public-accounts "https://www.viber.com/en/public-accounts")). The goal is to connect existing MBF bots with Viber's platform with as little as possible code modifications on the MBF bot's side. My part of the project was to demonstrate how such an integration could look like and to provide a first working version. When I had first working prototype ready, it turned out that some code parts can be reused for implementing MBF connectors for  other applications or platforms. Therefore, I extracted that part of the code and generialized it by removing Viber-specific parameters and API calls and moved it into a separate library. 
+
+This repository demonstrates one way of implementating a Viber - MBF connector using Node.js
+
+### Out-of-scope
+Topics like scalability or high availability are out-of-scope and won't be covered in here. 
 
 ## Prerequisites
 
 - Install Node.js ([https://nodejs.org/en/download/](https://nodejs.org/en/download/ "https://nodejs.org/en/download/"))
-- Install the Viber app. Ensure that the version supports 'Public Accounts' (currently, this functioanlity is only available on [Android](https://play.google.com/store/apps/details?id=com.viber.voip&hl=de) or [iOS](https://itunes.apple.com/us/app/viber/id382617920?mt=8)). 
+- Install the Viber app. Ensure that the version supports 'Public Accounts' (currently, this functionality is only available on [Android](https://play.google.com/store/apps/details?id=com.viber.voip&hl=de) or [iOS](https://itunes.apple.com/us/app/viber/id382617920?mt=8)). 
 - An Microsoft Bot Framework account (basically, this is a Live/Hotmail/Outlook.com account). Sign up at the Microsoft Bot Framework portal [https://dev.botframework.com/](https://dev.botframework.com/ "https://dev.botframework.com/")
 - *(Optional). A Microsoft Azure account if you want use the Azure Bot Service and want to host your bot on Azure. You can start your free trial on this official Azure web page ([https://azure.microsoft.com/en-us/](https://azure.microsoft.com/en-us/ "https://azure.microsoft.com/en-us/"))* 
  
